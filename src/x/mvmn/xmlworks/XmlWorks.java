@@ -34,11 +34,13 @@ import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
+import x.mvmn.xmlworks.swing.components.xmlpanel.XmlPanel;
+
 public class XmlWorks implements ActionListener {
 
 	private final JFrame mainWindow;
-	private final JTextArea txaXml;
-	private final JTextArea txaXsl;
+	private final XmlPanel txaXml;
+	private final XmlPanel txaXsl;
 	private final JTextArea txaResult;
 	private final JTable tblParams;
 	private final JButton btnSetParam;
@@ -89,10 +91,10 @@ public class XmlWorks implements ActionListener {
 		mainWindow = new JFrame("XmlWorks");
 		mainWindow.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-		txaXml = new JTextArea(
+		txaXml = new XmlPanel(
 				"<root>\n\t<elem attrOne=\"at1val\" attrTwo=\"at2val\">\n\t\tSome text\n\t</elem>\n\t<otherElem at3=\"three\">\n\t</otherElem>\n</root>\n");
 		txaXml.setTabSize(3);
-		txaXsl = new JTextArea("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n" + "\t<xsl:param name=\"testParam\"/>\n"
+		txaXsl = new XmlPanel("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n" + "\t<xsl:param name=\"testParam\"/>\n"
 				+ "\t<xsl:template match=\"/root/elem\">\n" + "\t\t<xsl:element name=\"newElem\">\n" + "\t\t\t<xsl:attribute name=\"newAttr\">\n"
 				+ "\t\t\t\t<xsl:value-of select=\"@attrOne\" />\n" + "\t\t\t\t<xsl:value-of select=\"'/'\" />\n"
 				+ "\t\t\t\t<xsl:value-of select=\"$testParam\" />\n" + "\t\t\t</xsl:attribute>\n" + "\t\t</xsl:element>\n" + "\t</xsl:template>\n"
@@ -106,7 +108,7 @@ public class XmlWorks implements ActionListener {
 		xslParamsPanel.add(btnSetParam, BorderLayout.NORTH);
 		xslParamsPanel.add(new JScrollPane(tblParams), BorderLayout.CENTER);
 		xslParamsPanel.add(btnRemoveParam, BorderLayout.SOUTH);
-		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, new JScrollPane(txaXml), new JScrollPane(txaXsl));
+		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, txaXml, txaXsl);
 		splitPane.setDividerLocation(0.5);
 		splitPane.setResizeWeight(0.5);
 		JSplitPane splitPaneTwo = new JSplitPane(JSplitPane.VERTICAL_SPLIT, false, splitPane, new JScrollPane(txaResult));
