@@ -2,6 +2,7 @@ package x.mvmn.xmlworks;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.StringReader;
@@ -12,18 +13,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPath;
@@ -34,18 +39,18 @@ import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
-import x.mvmn.xmlworks.swing.components.xmlpanel.XmlPanel;
-
 public class XmlWorks implements ActionListener {
 
 	private final JFrame mainWindow;
-	private final XmlPanel txaXml;
-	private final XmlPanel txaXsl;
+	private final JTextArea txaXml;
+	private final JTextArea txaXsl;
 	private final JTextArea txaResult;
 	private final JTable tblParams;
 	private final JButton btnSetParam;
 	private final JButton btnRemoveParam;
 	private final JButton btnRunXsl;
+	private final JTextField tfXpath;
+	private final JButton btnRunXpath;
 
 	private final Map<String, String> xslParams = new TreeMap<String, String>();
 	private final List<String> xslParamsList = new ArrayList<String>();
@@ -83,18 +88,20 @@ public class XmlWorks implements ActionListener {
 		btnSetParam = new JButton("Set parameter");
 		btnRemoveParam = new JButton("Remove parameter");
 		btnRunXsl = new JButton("Run XSL Transformation");
+		btnRunXpath = new JButton("Evaluate XPath expression");
 
 		btnSetParam.addActionListener(this);
 		btnRemoveParam.addActionListener(this);
 		btnRunXsl.addActionListener(this);
+		btnRunXpath.addActionListener(this);
 
 		mainWindow = new JFrame("XmlWorks");
 		mainWindow.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-		txaXml = new XmlPanel(
+		txaXml = new JTextArea(
 				"<root>\n\t<elem attrOne=\"at1val\" attrTwo=\"at2val\">\n\t\tSome text\n\t</elem>\n\t<otherElem at3=\"three\">\n\t</otherElem>\n</root>\n");
 		txaXml.setTabSize(3);
-		txaXsl = new XmlPanel("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n" + "\t<xsl:param name=\"testParam\"/>\n"
+		txaXsl = new JTextArea("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n" + "\t<xsl:param name=\"testParam\"/>\n"
 				+ "\t<xsl:template match=\"/root/elem\">\n" + "\t\t<xsl:element name=\"newElem\">\n" + "\t\t\t<xsl:attribute name=\"newAttr\">\n"
 				+ "\t\t\t\t<xsl:value-of select=\"@attrOne\" />\n" + "\t\t\t\t<xsl:value-of select=\"'/'\" />\n"
 				+ "\t\t\t\t<xsl:value-of select=\"$testParam\" />\n" + "\t\t\t</xsl:attribute>\n" + "\t\t</xsl:element>\n" + "\t</xsl:template>\n"
@@ -103,12 +110,14 @@ public class XmlWorks implements ActionListener {
 		txaResult = new JTextArea();
 		txaResult.setTabSize(3);
 
+		tfXpath = new JTextField("/root/*[contains(name(),'lem')]");
+
 		tblParams = new JTable(paramsTableModel);
 		JPanel xslParamsPanel = new JPanel(new BorderLayout());
 		xslParamsPanel.add(btnSetParam, BorderLayout.NORTH);
 		xslParamsPanel.add(new JScrollPane(tblParams), BorderLayout.CENTER);
 		xslParamsPanel.add(btnRemoveParam, BorderLayout.SOUTH);
-		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, txaXml, txaXsl);
+		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, new JScrollPane(txaXml), new JScrollPane(txaXsl));
 		splitPane.setDividerLocation(0.5);
 		splitPane.setResizeWeight(0.5);
 		JSplitPane splitPaneTwo = new JSplitPane(JSplitPane.VERTICAL_SPLIT, false, splitPane, new JScrollPane(txaResult));
@@ -117,8 +126,20 @@ public class XmlWorks implements ActionListener {
 		Container contentPane = mainWindow.getContentPane();
 		contentPane.setLayout(new BorderLayout());
 		JSplitPane splitPaneThree = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, splitPaneTwo, xslParamsPanel);
+		{
+			JPanel xpathPanel = new JPanel(new BorderLayout());
+			xpathPanel.add(new JLabel("XPath expression:"), BorderLayout.WEST);
+			xpathPanel.add(tfXpath, BorderLayout.CENTER);
+			xpathPanel.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 2));
+			contentPane.add(xpathPanel, BorderLayout.NORTH);
+		}
 		contentPane.add(splitPaneThree, BorderLayout.CENTER);
-		contentPane.add(btnRunXsl, BorderLayout.SOUTH);
+		{
+			JPanel buttonPanel = new JPanel(new GridLayout(1, 2));
+			buttonPanel.add(btnRunXsl);
+			buttonPanel.add(btnRunXpath);
+			contentPane.add(buttonPanel, BorderLayout.SOUTH);
+		}
 
 		mainWindow.pack();
 		splitPaneThree.setDividerLocation(0.7);
@@ -192,6 +213,28 @@ public class XmlWorks implements ActionListener {
 				tblParams.invalidate();
 				tblParams.revalidate();
 				tblParams.repaint();
+			}
+		} else if (actEvent.getSource() == btnRunXpath) {
+			try {
+				XPathFactory factory = XPathFactory.newInstance();
+				XPath xPath = factory.newXPath();
+				XPathExpression expr = xPath.compile(tfXpath.getText());
+				Object result = expr.evaluate(new InputSource(new StringReader(txaXml.getText())), XPathConstants.NODESET);
+
+				StringBuilder resultText = new StringBuilder();
+				NodeList nodes = (NodeList) result;
+				Transformer serializer = TransformerFactory.newInstance().newTransformer();
+
+				for (int i = 0; i < nodes.getLength(); i++) {
+					StringWriter sw = new StringWriter();
+					serializer.setOutputProperty("omit-xml-declaration", "yes");
+					serializer.transform(new DOMSource(nodes.item(i)), new StreamResult(sw));
+					resultText.append(sw.toString()).append("\n");
+				}
+				txaResult.setText(resultText.toString());
+			} catch (Exception e) {
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(mainWindow, "Exception occurred: " + e.getClass().getName() + " - " + e.getMessage());
 			}
 		}
 	}
