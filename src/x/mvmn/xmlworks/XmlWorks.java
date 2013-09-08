@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -235,7 +236,7 @@ public class XmlWorks implements ActionListener {
 				txaResult.setText(stringWriter.toString());
 			} catch (Exception e) {
 				e.printStackTrace();
-				JOptionPane.showMessageDialog(mainWindow, "Exception occurred: " + e.getClass().getName() + " - " + e.getMessage());
+				JOptionPane.showMessageDialog(mainWindow, new JScrollPane(new JTextArea("Exception occurred:\n" + stacktraceToString(e))));
 			}
 		} else if (actEvent.getSource() == btnSetParam) {
 			XPathFactory factory = XPathFactory.newInstance();
@@ -325,12 +326,12 @@ public class XmlWorks implements ActionListener {
 					StringWriter sw = new StringWriter();
 					serializer.setOutputProperty("omit-xml-declaration", "yes");
 					serializer.transform(new DOMSource(nodes.item(i)), new StreamResult(sw));
-					resultText.append(sw.toString()).append("\n");
+					resultText.append("Node #").append(String.valueOf(i + 1)).append(": ").append(sw.toString()).append("\n");
 				}
 				txaResult.setText(resultText.toString());
 			} catch (Exception e) {
 				e.printStackTrace();
-				JOptionPane.showMessageDialog(mainWindow, "Exception occurred: " + e.getClass().getName() + " - " + e.getMessage());
+				JOptionPane.showMessageDialog(mainWindow, new JScrollPane(new JTextArea("Exception occurred:\n" + stacktraceToString(e))));
 			}
 		} else if (actEvent.getSource() == btnRemoveNamespace) {
 			int selectedRow = tblNamespaces.getSelectedRow();
@@ -370,8 +371,15 @@ public class XmlWorks implements ActionListener {
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
-				JOptionPane.showMessageDialog(mainWindow, "Exception occurred: " + e.getClass().getName() + " - " + e.getMessage());
+				JOptionPane.showMessageDialog(mainWindow, new JScrollPane(new JTextArea("Exception occurred:\n" + stacktraceToString(e))));
 			}
 		}
+	}
+
+	private static String stacktraceToString(Throwable t) {
+		StringWriter stacktrace = new StringWriter();
+		t.printStackTrace(new PrintWriter(stacktrace));
+		return stacktrace.toString();
+
 	}
 }
