@@ -210,13 +210,14 @@ public class XmlWorks implements ActionListener {
 		splitPaneXsl.setResizeWeight(0.5);
 		splitPane.setResizeWeight(0.5);
 		mainWindow.pack();
+		mainWindow.setVisible(true);
+		splitPaneXsl.setDividerLocation(0.5);
 		splitPaneTwo.setDividerLocation(0.7);
 		splitPane.setDividerLocation(0.5);
-		splitPaneXsl.setDividerLocation(0.5);
 	}
 
 	public static void main(String[] args) {
-		new XmlWorks().mainWindow.setVisible(true);
+		new XmlWorks();
 	}
 
 	@Override
