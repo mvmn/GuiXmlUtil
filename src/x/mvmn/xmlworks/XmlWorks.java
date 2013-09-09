@@ -29,6 +29,9 @@ import javax.swing.JTextField;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
 import javax.xml.namespace.NamespaceContext;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
@@ -39,6 +42,7 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 
+import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
@@ -57,6 +61,7 @@ public class XmlWorks implements ActionListener {
 	private final JButton btnRunXpath;
 	private final JButton btnAddNamespace;
 	private final JButton btnRemoveNamespace;
+	private final JButton btnFormatXml;
 
 	private final Map<String, String> xslParams = new TreeMap<String, String>();
 	private final List<String> xslParamsList = new ArrayList<String>();
@@ -68,17 +73,14 @@ public class XmlWorks implements ActionListener {
 
 	private final NamespaceContext namespaceContext = new NamespaceContext() {
 
-		@Override
 		public Iterator<?> getPrefixes(String namespaceURI) {
 			return xpathNamespacePrefixes.iterator();
 		}
 
-		@Override
 		public String getPrefix(String namespaceURI) {
 			return xpathNamespacesUriToPrefix.get(namespaceURI);
 		}
 
-		@Override
 		public String getNamespaceURI(String prefix) {
 			return xpathNamespacesPrefixToUri.get(prefix);
 		}
@@ -91,7 +93,6 @@ public class XmlWorks implements ActionListener {
 		TableModel paramsTableModel = new AbstractTableModel() {
 			private static final long serialVersionUID = -9169765392107524412L;
 
-			@Override
 			public Object getValueAt(int rowIndex, int columnIndex) {
 				Object result = null;
 				if (rowIndex < xslParamsList.size()) {
@@ -103,12 +104,10 @@ public class XmlWorks implements ActionListener {
 				return result;
 			}
 
-			@Override
 			public int getRowCount() {
 				return xslParamsList.size();
 			}
 
-			@Override
 			public int getColumnCount() {
 				return 2;
 			}
@@ -117,7 +116,6 @@ public class XmlWorks implements ActionListener {
 		TableModel namespacesTableModel = new AbstractTableModel() {
 			private static final long serialVersionUID = 7639530381489168188L;
 
-			@Override
 			public Object getValueAt(int rowIndex, int columnIndex) {
 				Object result = null;
 				if (rowIndex < xpathNamespacePrefixes.size()) {
@@ -129,12 +127,10 @@ public class XmlWorks implements ActionListener {
 				return result;
 			}
 
-			@Override
 			public int getRowCount() {
 				return xpathNamespacePrefixes.size();
 			}
 
-			@Override
 			public int getColumnCount() {
 				return 2;
 			}
@@ -149,6 +145,7 @@ public class XmlWorks implements ActionListener {
 
 		btnAddNamespace = new JButton("Add namespace");
 		btnRemoveNamespace = new JButton("Remove namespace");
+		btnFormatXml = new JButton("Format XML");
 
 		btnSetParam.addActionListener(this);
 		btnRemoveParam.addActionListener(this);
@@ -156,6 +153,7 @@ public class XmlWorks implements ActionListener {
 		btnRunXpath.addActionListener(this);
 		btnAddNamespace.addActionListener(this);
 		btnRemoveNamespace.addActionListener(this);
+		btnFormatXml.addActionListener(this);
 
 		tfXpath = new JTextField("/root//test:*[contains(name(),'lem')]");
 		xpathNamespacePrefixes.add("test");
@@ -199,7 +197,11 @@ public class XmlWorks implements ActionListener {
 		tbpProcessing.addTab("XSL Transformation", splitPaneXsl);
 		tbpProcessing.addTab("XPath", xpathPanel);
 
-		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, new JScrollPane(txaXml), tbpProcessing);
+		JPanel xmlPanel = new JPanel(new BorderLayout());
+		xmlPanel.add(new JScrollPane(txaXml), BorderLayout.CENTER);
+		xmlPanel.add(btnFormatXml, BorderLayout.SOUTH);
+
+		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, xmlPanel, tbpProcessing);
 		JSplitPane splitPaneTwo = new JSplitPane(JSplitPane.VERTICAL_SPLIT, false, splitPane, new JScrollPane(txaResult));
 
 		Container contentPane = mainWindow.getContentPane();
@@ -221,7 +223,6 @@ public class XmlWorks implements ActionListener {
 		new XmlWorks();
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent actEvent) {
 		if (actEvent.getSource() == btnRunXsl) {
 			try {
@@ -250,17 +251,14 @@ public class XmlWorks implements ActionListener {
 					contexts.add("xsl");
 				}
 
-				@Override
 				public Iterator<?> getPrefixes(String namespaceURI) {
 					return contexts.iterator();
 				}
 
-				@Override
 				public String getPrefix(String namespaceURI) {
 					return namespaceURI.equals("http://www.w3.org/1999/XSL/Transform") ? "xsl" : null;
 				}
 
-				@Override
 				public String getNamespaceURI(String prefix) {
 					return prefix.equals("xsl") ? "http://www.w3.org/1999/XSL/Transform" : null;
 				}
@@ -373,6 +371,27 @@ public class XmlWorks implements ActionListener {
 				e.printStackTrace();
 				JOptionPane.showMessageDialog(mainWindow, new JScrollPane(new JTextArea("Exception occurred:\n" + stacktraceToString(e))));
 			}
+		} else if (actEvent.getSource() == btnFormatXml) {
+
+			try {
+				DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+				final Document document = docBuilder.parse(new InputSource(new StringReader(txaXml.getText())));
+
+				TransformerFactory factory = TransformerFactory.newInstance();
+				factory.setAttribute("indent-number", new Integer(2));
+				Transformer transformer = factory.newTransformer();
+				transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+				transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+
+				DOMSource source = new DOMSource(document);
+				StreamResult result = new StreamResult(new StringWriter());
+				transformer.transform(source, result);
+				String xmlString = result.getWriter().toString();
+				txaXml.setText(xmlString);
+			} catch (Exception e) {
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(mainWindow, new JScrollPane(new JTextArea("Exception occurred:\n" + stacktraceToString(e))));
+			}
 		}
 	}
 
@@ -380,6 +399,5 @@ public class XmlWorks implements ActionListener {
 		StringWriter stacktrace = new StringWriter();
 		t.printStackTrace(new PrintWriter(stacktrace));
 		return stacktrace.toString();
-
 	}
 }
