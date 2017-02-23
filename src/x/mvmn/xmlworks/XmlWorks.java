@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -32,8 +33,11 @@ import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.URIResolver;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
@@ -44,7 +48,9 @@ import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
+import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 public class XmlWorks implements ActionListener {
 
@@ -229,11 +235,24 @@ public class XmlWorks implements ActionListener {
 				String sourceText = txaXml.getText();
 				String xslText = txaXsl.getText();
 				Transformer transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(new StringReader(xslText)));
+				transformer.setURIResolver(new URIResolver() {
+					public Source resolve(String href, String base) throws TransformerException {
+						return new DOMSource();
+					}
+				});
 				StringWriter stringWriter = new StringWriter();
 				for (Map.Entry<String, String> xslParam : xslParams.entrySet()) {
 					transformer.setParameter(xslParam.getKey(), xslParam.getValue());
 				}
-				transformer.transform(new StreamSource(new StringReader(sourceText)), new StreamResult(stringWriter));
+				DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+				docBuilder.setEntityResolver(new EntityResolver() {
+					public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+						return new InputSource(new StringReader(""));
+					}
+				});
+				Document document = docBuilder.parse(new InputSource(new StringReader(sourceText)));
+
+				transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
 				txaResult.setText(stringWriter.toString());
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -375,11 +394,21 @@ public class XmlWorks implements ActionListener {
 
 			try {
 				DocumentBuilder docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+				docBuilder.setEntityResolver(new EntityResolver() {
+					public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+						return new InputSource(new StringReader(""));
+					}
+				});
 				final Document document = docBuilder.parse(new InputSource(new StringReader(txaXml.getText())));
 
 				TransformerFactory factory = TransformerFactory.newInstance();
 				factory.setAttribute("indent-number", new Integer(2));
 				Transformer transformer = factory.newTransformer();
+				transformer.setURIResolver(new URIResolver() {
+					public Source resolve(String href, String base) throws TransformerException {
+						return new DOMSource();
+					}
+				});
 				transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 				transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
 
